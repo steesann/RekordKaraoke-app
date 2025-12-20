@@ -6,6 +6,21 @@
 
 const logger = require('../../util/logger');
 
+/**
+ * Очищает название от мусора для fallback поиска
+ */
+function cleanForSearch(str) {
+  if (!str) return '';
+  return str
+    // Убираем содержимое в скобках: (feat. X), [Remix], (Original Mix), (Radio Edit)
+    .replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, ' ')
+    // Убираем feat./ft./featuring
+    .replace(/\s*(feat\.?|ft\.?|featuring)\s+.*/i, '')
+    // Убираем лишние пробелы
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 class LrclibProvider {
   constructor(config = {}) {
     this.baseUrl = config.baseUrl || 'https://lrclib.net/api';
@@ -14,6 +29,24 @@ class LrclibProvider {
   }
 
   async search(artist, title) {
+    // Сначала ищем "как есть"
+    let result = await this._doSearch(artist, title);
+    if (result) return result;
+
+    // Fallback: очищаем от мусора и пробуем снова
+    const cleanArtist = cleanForSearch(artist);
+    const cleanTitle = cleanForSearch(title);
+    
+    if (cleanArtist !== artist || cleanTitle !== title) {
+      logger.debug(`LRCLIB fallback search: "${cleanArtist} - ${cleanTitle}"`);
+      result = await this._doSearch(cleanArtist, cleanTitle);
+      if (result) return result;
+    }
+
+    return null;
+  }
+
+  async _doSearch(artist, title) {
     const url = new URL(`${this.baseUrl}/search`);
     url.searchParams.set('artist_name', artist);
     url.searchParams.set('track_name', title);

@@ -80,6 +80,7 @@ class LinkBridge extends EventEmitter {
     
     // Для отслеживания смены трека
     this.lastTrackKey = '';
+    this.trackChangeTimer = null;
   }
 
   start() {
@@ -136,9 +137,20 @@ class LinkBridge extends EventEmitter {
     const key = `${artist}::${title}`;
     
     if (key !== this.lastTrackKey && artist && title) {
-      this.lastTrackKey = key;
-      logger.info(`Track changed: ${artist} - ${title}`);
-      this.emit('trackChanged', { artist, title });
+      // Debounce: ждём 100мс, чтобы оба поля (artist + title) успели обновиться
+      clearTimeout(this.trackChangeTimer);
+      this.trackChangeTimer = setTimeout(() => {
+        // Перепроверяем после debounce
+        const currentKey = `${this.state.master.artist}::${this.state.master.title}`;
+        if (currentKey !== this.lastTrackKey && this.state.master.artist && this.state.master.title) {
+          this.lastTrackKey = currentKey;
+          logger.info(`Track changed: ${this.state.master.artist} - ${this.state.master.title}`);
+          this.emit('trackChanged', { 
+            artist: this.state.master.artist, 
+            title: this.state.master.title 
+          });
+        }
+      }, 50);
     }
   }
 

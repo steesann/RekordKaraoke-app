@@ -27,18 +27,41 @@ function parsePlaylist(content, format) {
       if (line.startsWith('#EXTINF:')) {
         const match = line.match(/#EXTINF:[^,]*,\s*(.+?)\s*-\s*(.+)/);
         if (match) {
-          tracks.push({ artist: match[1].trim(), title: match[2].trim() });
+          const artist = match[1].trim();
+          const title = match[2].trim();
+          if (artist && title) {
+            tracks.push({ artist, title });
+          }
         }
       }
     }
   } else {
     // TXT: Artist - Title (по одному на строку)
-    for (const line of lines) {
+    for (let line of lines) {
+      // Пропускаем комментарии
       if (line.startsWith('#')) continue;
       
-      const parts = line.split(/\s*-\s*/);
-      if (parts.length >= 2) {
-        tracks.push({ artist: parts[0].trim(), title: parts.slice(1).join(' - ').trim() });
+      // Убираем BOM, случайные управляющие символы и лишние пробелы/тире в начале
+      line = line
+        .replace(/^\uFEFF/, '')           // BOM
+        .replace(/^[\s\-–—]+/, '')         // пробелы и тире в начале
+        .replace(/[\s\-–—]+$/, '')         // пробелы и тире в конце
+        .trim();
+      
+      if (!line) continue;
+      
+      // Ищем разделитель " - " (с пробелами)
+      const match = line.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+      if (match) {
+        const artist = match[1].trim();
+        const title = match[2].trim();
+        if (artist && title) {
+          tracks.push({ artist, title });
+        } else {
+          logger.warn(`Skipping invalid line (empty artist/title): "${line}"`);
+        }
+      } else {
+        logger.warn(`Skipping unparseable line: "${line}"`);
       }
     }
   }

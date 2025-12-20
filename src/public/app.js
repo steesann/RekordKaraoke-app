@@ -81,12 +81,16 @@ function updateProgress() {
 }
 
 // WebSocket подключение
+let isConnected = false;
+
 function connect() {
   const wsUrl = `ws://${location.hostname}:${location.port || 3000}`;
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
     console.log('Connected to server');
+    isConnected = true;
+    app.classList.remove('disconnected');
   };
 
   ws.onmessage = (event) => {
@@ -100,6 +104,8 @@ function connect() {
 
   ws.onclose = () => {
     console.log('Disconnected, reconnecting in 2s...');
+    isConnected = false;
+    app.classList.add('disconnected');
     setTimeout(connect, 2000);
   };
 
@@ -118,6 +124,7 @@ function handleMessage(msg) {
       bpmEl.textContent = msg.data.bpm ? `${Math.round(msg.data.bpm)} BPM` : '— BPM';
       lyrics = msg.data.lyrics;
       app.className = `status-${msg.data.lyricsStatus}`;
+      updateFallback(msg.data.artist, msg.data.title);
       renderLyrics();
       updateProgress();
       break;
@@ -127,6 +134,7 @@ function handleMessage(msg) {
       titleEl.textContent = msg.data.title || '—';
       lyrics = null;
       app.className = `status-${msg.data.status}`;
+      updateFallback(msg.data.artist, msg.data.title);
       lyricsEl.innerHTML = '';
       progressFill.style.width = '0%';
       break;
@@ -149,6 +157,14 @@ function handleMessage(msg) {
     case 'bpm':
       bpmEl.textContent = `${Math.round(msg.data)} BPM`;
       break;
+  }
+}
+
+function updateFallback(artist, title) {
+  if (artist && title) {
+    lyricsEl.setAttribute('data-fallback', `${artist} — ${title}`);
+  } else {
+    lyricsEl.setAttribute('data-fallback', '');
   }
 }
 
