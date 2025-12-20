@@ -21,10 +21,15 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// Рендер лирики
+// Рендер лирики с плавными анимациями
+let lastActiveIndex = -1;
+let visibleLines = new Set();
+
 function renderLyrics() {
   if (!lyrics || !lyrics.lines || lyrics.lines.length === 0) {
     lyricsEl.innerHTML = '';
+    visibleLines.clear();
+    lastActiveIndex = -1;
     return;
   }
 
@@ -37,27 +42,129 @@ function renderLyrics() {
     }
   }
 
-  // Показываем окно: 2 строки до, активная, 3 строки после
+  // Окно отображения: 2 строки до, активная, 3 строки после
   const windowStart = Math.max(0, activeIndex - 2);
   const windowEnd = Math.min(lyrics.lines.length, activeIndex + 4);
+  
+  const newVisibleLines = new Set();
+  for (let i = windowStart; i < windowEnd; i++) {
+    newVisibleLines.add(i);
+  }
 
+  // Проверяем нужен ли полный перерендер
+  const needsFullRender = !lyricsEl.children.length || 
+    activeIndex < lastActiveIndex ||
+    Math.abs(activeIndex - lastActiveIndex) > 2;
+
+  if (needsFullRender) {
+    renderFullLyrics(activeIndex, windowStart, windowEnd, newVisibleLines);
+  } else {
+    updateLyricsClasses(activeIndex, windowStart, windowEnd, newVisibleLines);
+  }
+
+  lastActiveIndex = activeIndex;
+  visibleLines = newVisibleLines;
+}
+
+function renderFullLyrics(activeIndex, windowStart, windowEnd, newVisibleLines) {
   let html = '';
+  
   for (let i = windowStart; i < windowEnd; i++) {
     const line = lyrics.lines[i];
-    let className = 'lyric-line';
+    const classes = getLineClasses(i, activeIndex, !visibleLines.has(i));
+    const delay = (i - windowStart) * 0.08;
     
-    if (i === activeIndex) {
-      className += ' active';
-    } else if (i < activeIndex) {
-      className += ' past';
-    } else if (i === activeIndex + 1) {
-      className += ' next';
-    }
-
-    html += `<div class="${className}">${escapeHtml(line.text)}</div>`;
+    html += `<div class="${classes}" data-index="${i}" style="transition-delay: ${delay}s">${escapeHtml(line.text)}</div>`;
   }
 
   lyricsEl.innerHTML = html;
+
+  // Триггерим анимацию появления через requestAnimationFrame
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const lines = lyricsEl.querySelectorAll('.lyric-line');
+      lines.forEach(el => {
+        el.classList.add('visible');
+        el.classList.remove('entering');
+      });
+    });
+  });
+}
+
+function updateLyricsClasses(activeIndex, windowStart, windowEnd, newVisibleLines) {
+  const existingLines = lyricsEl.querySelectorAll('.lyric-line');
+  const existingIndices = new Set();
+  
+  existingLines.forEach(el => {
+    const idx = parseInt(el.dataset.index, 10);
+    existingIndices.add(idx);
+    
+    if (!newVisibleLines.has(idx)) {
+      // Строка уходит из окна — плавно скрываем
+      el.classList.add('fading-out');
+      el.classList.remove('visible');
+    } else {
+      // Обновляем классы
+      el.className = getLineClasses(idx, activeIndex, false);
+      el.classList.add('visible');
+    }
+  });
+
+  // Добавляем новые строки
+  for (let i = windowStart; i < windowEnd; i++) {
+    if (!existingIndices.has(i)) {
+      const line = lyrics.lines[i];
+      const div = document.createElement('div');
+      div.className = getLineClasses(i, activeIndex, true);
+      div.dataset.index = i;
+      div.textContent = line.text;
+      
+      // Вставляем в правильную позицию
+      const insertBefore = Array.from(lyricsEl.children).find(el => 
+        parseInt(el.dataset.index, 10) > i
+      );
+      
+      if (insertBefore) {
+        lyricsEl.insertBefore(div, insertBefore);
+      } else {
+        lyricsEl.appendChild(div);
+      }
+
+      // Анимация появления
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          div.classList.add('visible');
+          div.classList.remove('entering');
+        });
+      });
+    }
+  }
+
+  // Удаляем скрытые строки после анимации
+  setTimeout(() => {
+    const fadingOut = lyricsEl.querySelectorAll('.fading-out');
+    fadingOut.forEach(el => el.remove());
+  }, 600);
+}
+
+function getLineClasses(index, activeIndex, isNew) {
+  let classes = 'lyric-line';
+  
+  if (index === activeIndex) {
+    classes += ' active';
+  } else if (index === activeIndex + 1) {
+    classes += ' next';
+  } else if (index > activeIndex + 1) {
+    classes += ' upcoming';
+  } else if (index < activeIndex) {
+    classes += ' past';
+  }
+  
+  if (isNew) {
+    classes += ' entering';
+  }
+  
+  return classes;
 }
 
 function escapeHtml(text) {
