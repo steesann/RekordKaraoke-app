@@ -1,0 +1,132 @@
+/**
+ * LRCLIB Provider
+ * API: https://lrclib.net/api
+ * Документация: https://lrclib.net/docs
+ */
+
+const logger = require('../../util/logger');
+
+class LrclibProvider {
+  constructor(config = {}) {
+    this.baseUrl = config.baseUrl || 'https://lrclib.net/api';
+    this.timeout = config.timeout || 5000;
+    this.name = 'lrclib';
+  }
+
+  async search(artist, title) {
+    const url = new URL(`${this.baseUrl}/search`);
+    url.searchParams.set('artist_name', artist);
+    url.searchParams.set('track_name', title);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const res = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'RekordKaraoke/1.0'
+        }
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        logger.warn(`LRCLIB search failed: ${res.status}`);
+        return null;
+      }
+
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        return null;
+      }
+
+      // Ищем результат с syncedLyrics
+      const synced = data.find(item => item.syncedLyrics);
+      if (synced) {
+        return {
+          content: synced.syncedLyrics,
+          format: 'lrc',
+          provider: this.name,
+          meta: {
+            id: synced.id,
+            artist: synced.artistName,
+            title: synced.trackName,
+            album: synced.albumName,
+            duration: synced.duration
+          }
+        };
+      }
+
+      // Fallback на plain lyrics (без тайм-кодов)
+      const plain = data.find(item => item.plainLyrics);
+      if (plain) {
+        logger.warn(`LRCLIB: only plain lyrics for "${artist} - ${title}"`);
+        return null; // Нам нужны только синхронизированные
+      }
+
+      return null;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        logger.warn(`LRCLIB timeout for "${artist} - ${title}"`);
+      } else {
+        logger.error(`LRCLIB error: ${err.message}`);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Прямой запрос по точному совпадению
+   */
+  async get(artist, title, album = '', duration = 0) {
+    const url = new URL(`${this.baseUrl}/get`);
+    url.searchParams.set('artist_name', artist);
+    url.searchParams.set('track_name', title);
+    if (album) url.searchParams.set('album_name', album);
+    if (duration) url.searchParams.set('duration', Math.round(duration));
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const res = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'RekordKaraoke/1.0'
+        }
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        logger.warn(`LRCLIB get failed: ${res.status}`);
+        return null;
+      }
+
+      const data = await res.json();
+      if (!data.syncedLyrics) return null;
+
+      return {
+        content: data.syncedLyrics,
+        format: 'lrc',
+        provider: this.name,
+        meta: {
+          id: data.id,
+          artist: data.artistName,
+          title: data.trackName,
+          album: data.albumName,
+          duration: data.duration
+        }
+      };
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        logger.warn(`LRCLIB timeout for "${artist} - ${title}"`);
+      } else {
+        logger.error(`LRCLIB error: ${err.message}`);
+      }
+      return null;
+    }
+  }
+}
+
+module.exports = LrclibProvider;

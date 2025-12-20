@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RekordKaraoke</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div id="track-info">
+      <span id="artist">—</span>
+      <span class="separator">–</span>
+      <span id="title">Waiting for track...</span>
+    </div>
+    
+    <div id="lyrics-container">
+      <div id="lyrics-status"></div>
+      <div id="lyrics">
+        <!-- Строки лирики будут здесь -->
+      </div>
+    </div>
+    
+    <div id="progress-bar">
+      <div id="progress-fill"></div>
+    </div>
+    
+    <div id="time-info">
+      <span id="current-time">0:00</span>
+      <span id="bpm">— BPM</span>
+    </div>
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>

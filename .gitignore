@@ -9,6 +9,8 @@ data/reports/*
 data/cache/*
 data/library.json
 
+!data/playlists/.gitkeep
+
 # IDE
 .idea/
 .vscode/
