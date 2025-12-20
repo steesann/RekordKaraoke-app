@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Data Files
+data/playlists/*
+data/lyrics_raw/*
+data/lyrics_json/*
+data/reports/*
+data/cache/*
+data/library.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
