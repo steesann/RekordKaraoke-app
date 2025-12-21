@@ -3,7 +3,7 @@ const path = require('path');
 const LrclibProvider = require('./providers/lrclib');
 const Store = require('./store');
 const { getLibrary } = require('./library');
-const { makeSafeFilename } = require('../util/normalize');
+const { makeSafeFilename, makeKey } = require('../util/normalize');
 const parsers = require('../parsers');
 const logger = require('../util/logger');
 
@@ -17,6 +17,9 @@ class Resolver {
     });
     this.library = null;
     this.rawDir = config.paths.lyricsRaw;
+    
+    // Mutex: отслеживаем текущие in-flight запросы
+    this.pendingRequests = new Map(); // key -> Promise
 
     // Инициализируем провайдеры
     if (config.providers.lrclib?.enabled) {
@@ -36,8 +39,9 @@ class Resolver {
    */
   async resolve(artist, title, options = {}) {
     const { skipLocal = false, skipProviders = false } = options;
+    const key = makeKey(artist, title);
 
-    // 1. Проверяем library
+    // 1. Проверяем library (быстрый путь)
     if (!skipLocal) {
       const cached = this.library.find(artist, title);
       if (cached) {
@@ -46,7 +50,29 @@ class Resolver {
       }
     }
 
-    // 2. Проверяем локальные файлы в raw директории
+    // 2. Проверяем, не идёт ли уже запрос на этот трек
+    if (this.pendingRequests.has(key)) {
+      logger.debug(`Waiting for pending request: "${artist} - ${title}"`);
+      return this.pendingRequests.get(key);
+    }
+
+    // 3. Создаём новый запрос с mutex
+    const requestPromise = this._doResolve(artist, title, skipLocal, skipProviders);
+    this.pendingRequests.set(key, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      this.pendingRequests.delete(key);
+    }
+  }
+
+  /**
+   * Внутренняя логика поиска (без mutex)
+   */
+  async _doResolve(artist, title, skipLocal, skipProviders) {
+    // Проверяем локальные файлы в raw директории
     if (!skipLocal) {
       const localResult = await this.checkLocalFiles(artist, title);
       if (localResult) {
@@ -54,7 +80,7 @@ class Resolver {
       }
     }
 
-    // 3. Запрашиваем провайдеры
+    // Запрашиваем провайдеры
     if (!skipProviders) {
       for (const provider of this.providers) {
         logger.debug(`Trying provider: ${provider.name}`);
@@ -63,8 +89,14 @@ class Resolver {
         if (result) {
           logger.info(`Found via ${provider.name}: "${artist} - ${title}"`);
           
-          // Сохраняем
-          const stored = await this.store.save(artist, title, result.content, result.format);
+          // Сохраняем (передаём duration если есть)
+          const stored = await this.store.save(
+            artist, 
+            title, 
+            result.content, 
+            result.format,
+            result.meta?.duration
+          );
           
           // Добавляем в library
           await this.library.add(artist, title, {

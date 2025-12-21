@@ -105,8 +105,11 @@ function setBpm(newBpm) {
 
 // Тестовые треки
 const testTracks = [
-  { artist: 'saypink!', title: 'Протест' },
-  { artist: 'Дети rave', title: 'China town' },
+  { artist: 'Daft Punk', title: 'Around The World' },
+  { artist: 'The Weeknd', title: 'Blinding Lights' },
+  { artist: 'Dua Lipa', title: 'Levitating' },
+  { artist: 'Queen', title: 'Bohemian Rhapsody' },
+  { artist: 'Michael Jackson', title: 'Billie Jean' }
 ];
 
 // Авто-режим
@@ -118,7 +121,7 @@ async function autoMode() {
     play();
     
     // Играем 15 секунд
-    await new Promise(r => setTimeout(r, 250000));
+    await new Promise(r => setTimeout(r, 15000));
     pause();
     
     // Пауза между треками

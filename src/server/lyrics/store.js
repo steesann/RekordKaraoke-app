@@ -18,9 +18,14 @@ class Store {
 
   /**
    * Сохраняет raw файл, парсит, сохраняет JSON
-   * Возвращает { rawPath, jsonPath, format }
+   * @param {string} artist 
+   * @param {string} title 
+   * @param {string} rawContent 
+   * @param {string} format 
+   * @param {number} [duration] - длительность трека в секундах (для endTime последней строки)
+   * @returns {{ rawPath, jsonPath, format, linesCount }}
    */
-  async save(artist, title, rawContent, format) {
+  async save(artist, title, rawContent, format, duration = null) {
     const baseName = makeSafeFilename(artist, title);
     
     // Сохраняем raw
@@ -29,13 +34,14 @@ class Store {
     await fs.promises.writeFile(rawPath, rawContent, 'utf8');
     logger.debug(`Saved raw: ${rawPath}`);
 
-    // Парсим
-    const parsed = parsers.parse(rawContent, format);
+    // Парсим (передаём duration)
+    const parsed = parsers.parse(rawContent, format, { duration });
     
     // Добавляем мета
     parsed.artist = artist;
     parsed.title = title;
     parsed.format = format;
+    if (duration) parsed.duration = duration;
 
     // Сохраняем JSON
     const jsonPath = path.join(this.jsonDir, `${baseName}.json`);

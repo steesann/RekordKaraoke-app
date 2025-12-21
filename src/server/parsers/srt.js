@@ -19,7 +19,8 @@ function parseTimestamp(ts) {
   return hours * 3600 + minutes * 60 + seconds + ms / 1000;
 }
 
-function parse(content) {
+function parse(content, options = {}) {
+  const { duration = null } = options;
   const blocks = content.trim().split(/\r?\n\r?\n/);
   const result = {
     meta: {},
@@ -56,6 +57,11 @@ function parse(content) {
 
   // Сортируем по времени
   result.lines.sort((a, b) => a.time - b.time);
+
+  // Сохраняем duration если передан
+  if (duration) {
+    result.duration = duration;
+  }
 
   return result;
 }

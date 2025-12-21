@@ -5,21 +5,7 @@
  */
 
 const logger = require('../../util/logger');
-
-/**
- * Очищает название от мусора для fallback поиска
- */
-function cleanForSearch(str) {
-  if (!str) return '';
-  return str
-    // Убираем содержимое в скобках: (feat. X), [Remix], (Original Mix), (Radio Edit)
-    .replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, ' ')
-    // Убираем feat./ft./featuring
-    .replace(/\s*(feat\.?|ft\.?|featuring)\s+.*/i, '')
-    // Убираем лишние пробелы
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const { cleanForSearch } = require('../../util/normalize');
 
 class LrclibProvider {
   constructor(config = {}) {

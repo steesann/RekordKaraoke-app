@@ -1,336 +1,348 @@
+/* === RESET & BASE === */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-
-html {
-  /* Макет рисовали под 2K: на ширине ~2560px получаем 16px (1rem).
-     На маленьких экранах рем плавно уменьшается до 12px. */
-  font-size: clamp(12px, 1vw, 16px);
+:root {
+  /* Размеры из макета (базовые для 2K) */
+  --padding-outer: 48px;
+  --padding-inner: 128px;
+  --gap-sections: 16px;
+  --gap-content: 32px;
+  --header-min-h: 100px;
+  --footer-min-h: 100px;
+  
+  /* Цвета */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111;
+  --text-primary: #fff;
+  --text-secondary: #888;
+  --text-muted: #444;
+  --accent: #8b5cf6;
+  --accent-glow: rgba(139, 92, 246, 0.4);
 }
 
-:root {
-  /* Единицы в rem. При html{font-size:16px} (2K) совпадает с макетом:
-     16px=1rem, 32px=2rem, 48px=3rem, 128px=8rem. */
-  --space-16: 1rem;
-  --space-32: 2rem;
-  --space-48: 3rem;
-  --space-128: 8rem;
-  --bar-min-h: 6.25rem; /* 100px на 2K */
-  --lyrics-max-w: clamp(20rem, 55vw, 87.5rem); /* 320px..1400px при 16px base */
-  --cover-max-w: 32rem; /* размер обложки на 2K */
-  --lyrics-fade-pad: 2.5rem; /* “воздух” сверху/снизу, чтобы не рубило строки */
+html {
+  font-size: 16px;
 }
 
 body {
-  background: #0a0a0a;
-  color: #fff;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
   overflow: hidden;
 }
 
+/* === LAYOUT === */
 #app {
-  min-height: 100vh;
-  height: 100svh;
-  display: grid;
-  grid-template-rows:
-    minmax(var(--bar-min-h), auto)
-    1fr
-    minmax(var(--bar-min-h), auto);
-  gap: var(--space-128);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: var(--padding-outer);
+  gap: var(--gap-sections);
+}
 
-  /* 48px от края экрана на 2K.
-     Добавляем safe-area для мобилок с вырезами. */
-  padding:
-    calc(var(--space-48) + env(safe-area-inset-top))
-    calc(var(--space-48) + env(safe-area-inset-right))
-    calc(var(--space-48) + env(safe-area-inset-bottom))
-    calc(var(--space-48) + env(safe-area-inset-left));
-
-  overflow: hidden;
+/* Header */
+#header {
+  min-height: var(--header-min-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 0 2rem;
 }
 
 #track-info {
-  min-height: var(--bar-min-h);
+  text-align: center;
   display: flex;
   align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   justify-content: center;
-  text-align: center;
-  padding: 0 var(--space-32);
-  border-bottom: 1px solid #333;
 }
 
 #artist {
-  font-size: clamp(1.05rem, 1.2vw, 1.5rem);
-  color: #888;
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
+  color: var(--text-secondary);
+  font-weight: 400;
 }
 
 .separator {
-  margin: 0 0.5rem;
-  color: #444;
+  color: var(--text-muted);
+  font-weight: 300;
 }
 
 #title {
-  font-size: clamp(1.05rem, 1.2vw, 1.5rem);
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
   font-weight: 600;
 }
 
-#lyrics-container {
-  /* Основной блок: обложка слева, текст справа */
-  display: grid;
-  /* Держим группу (обложка+текст) по центру, а не растягиваем правую колонку на всю ширину.
-     Так активная строка визуально оказывается “в центре” правого блока, а не уезжает вправо. */
-  grid-template-columns:
-    minmax(18rem, var(--cover-max-w))
-    minmax(0, var(--lyrics-max-w));
-  justify-content: center;
-  align-items: center;
-  column-gap: var(--space-128);
+#status-indicator {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  transition: all 0.3s ease;
+}
 
-  /* Внутренние отступы “128” из макета */
-  padding: var(--space-128);
+#app.disconnected #status-indicator {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: pulse 1s infinite;
+}
 
-  min-height: 0;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Main */
+#main {
+  flex: 1;
+  display: flex;
+  gap: var(--gap-content);
+  padding: var(--padding-inner);
+  background: var(--bg-secondary);
+  border-radius: 16px;
   overflow: hidden;
 }
 
-
-/* Адаптация: на более узких экранах уменьшаем “128” и складываем колонки */
-@media (max-width: 80rem) {
-  #lyrics-container {
-    column-gap: var(--space-48);
-    padding: var(--space-48);
-  }
-}
-
-@media (max-width: 60rem) {
-  #lyrics-container {
-    grid-template-columns: 1fr;
-  }
-
-  #cover {
-    max-width: 28rem;
-  }
-}
-
-#lyrics-status {
-  color: #666;
-  font-size: 1rem;
-  /* Не должен сдвигать центр лирики, когда пустой */
-  margin-bottom: var(--space-16);
-}
-
-/* Когда статус пустой — убираем из потока, чтобы не ломал вертикальное центрирование */
-#lyrics-status:empty {
-  display: none;
-  margin-bottom: 0;
-}
-
-/* Левая колонка — обложка */
-#cover-panel {
+/* Cover container - левый блок */
+#cover-container {
+  flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: clamp(200px, 25vw, 400px);
 }
 
 #cover {
-  width: 100%;
-  max-width: var(--cover-max-w);
-  aspect-ratio: 1 / 1;
-  background: #d9d9d9;
+  aspect-ratio: 1;
+  background: var(--bg-primary);
+  border-radius: 12px;
   overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+#cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+#cover-placeholder svg {
+  width: 40%;
+  height: 40%;
+  opacity: 0.5;
 }
 
 #cover-image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  display: block;
   object-fit: cover;
 }
 
-/* Если src ещё не задан — не показываем “битую картинку” */
-#cover-image:not([src]),
-#cover-image[src=""] {
-  display: none;
-}
-
-/* Правая колонка — лирика */
-#lyrics-panel {
-  min-height: 0;
-  /* Не режем свечение активной строки */
-  overflow: visible;
+#progress-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-#lyrics {
-  text-align: center;
-  width: min(100%, var(--lyrics-max-w));
-  margin-inline: auto;
-  position: relative;
-
-  /* Мягкое “обрезание”: делаем запас сверху/снизу и плавный fade, чтобы строки не рубились */
-  padding-block: var(--lyrics-fade-pad);
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    #000 18%,
-    #000 82%,
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    #000 18%,
-    #000 82%,
-    transparent
-  );
-
-  /* Чтобы текст красиво центровался по высоте в правой колонке */
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.lyric-line {
-  font-size: clamp(1.15rem, 1.3vw, 2rem);
-  line-height: 1.8;
-  color: #3a3a3a;
-  padding: 0.3rem 0;
-  opacity: 0;
-  transform: translateY(20px) scale(0.95);
-  transition: 
-    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.4s ease,
-    font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    text-shadow 0.4s ease,
-    filter 0.4s ease;
-  filter: blur(0px);
-}
-
-.lyric-line.visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
-.lyric-line.active {
-  color: #fff;
-  font-size: clamp(1.6rem, 1.8vw, 2.8rem);
-  text-shadow: 
-    0 0 30px rgba(255, 255, 255, 0.4),
-    0 0 60px rgba(139, 92, 246, 0.3);
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-.lyric-line.next {
-  color: #888;
-  font-size: clamp(1.35rem, 1.5vw, 2.2rem);
-}
-
-.lyric-line.upcoming {
-  color: #555;
-}
-
-.lyric-line.past {
-  color: #333;
-  font-size: clamp(0.95rem, 1.1vw, 1.6rem);
-  opacity: 0.6;
-  filter: blur(1px);
-}
-
-.lyric-line.fading-out {
-  opacity: 0;
-  transform: translateY(-20px) scale(0.9);
-}
-
-@keyframes glow-pulse {
-  0%, 100% {
-    text-shadow: 
-      0 0 30px rgba(255, 255, 255, 0.4),
-      0 0 60px rgba(139, 92, 246, 0.3);
-  }
-  50% {
-    text-shadow: 
-      0 0 40px rgba(255, 255, 255, 0.6),
-      0 0 80px rgba(139, 92, 246, 0.5);
-  }
-}
-
-/* Появление новой лирики */
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.lyric-line.entering {
-  animation: slide-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-footer#bottom-bar {
-  min-height: var(--bar-min-h);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-16);
-  padding: 0 var(--space-32);
-  border-top: 1px solid #333;
+  gap: 0.5rem;
 }
 
 #progress-bar {
-  height: 4px;
-  background: #222;
-  border-radius: 2px;
-  margin: 0;
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
 #progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), #a78bfa);
+  border-radius: 3px;
   width: 0%;
   transition: width 0.15s linear;
 }
 
-#time-info {
+#time-display {
   display: flex;
   justify-content: space-between;
-  color: #666;
-  font-size: clamp(0.8rem, 0.7vw, 0.95rem);
-  padding-top: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
-/* Статусы */
+/* Lyrics container - правый блок */
+#lyrics-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+#lyrics-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  z-index: 1;
+}
+
+#lyrics-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  perspective: 1000px;
+  perspective-origin: 0% 50%;
+}
+
+#lyrics {
+  width: 100%;
+  padding-left: 2rem;
+  transform-style: preserve-3d;
+}
+
+/* === LYRICS ARC EFFECT === */
+.lyric-line {
+  font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+  line-height: 1.8;
+  color: var(--text-muted);
+  padding: 0.4rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  
+  /* Плавные переходы */
+  transition: 
+    color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    font-size 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    text-shadow 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+    filter 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  transform-origin: left center;
+}
+
+/* Прошедшие строки - уходят "назад" по дуге */
+.lyric-line.past-3 {
+  opacity: 0;
+  transform: translateZ(-150px) rotateX(25deg) translateY(-30px);
+  filter: blur(4px);
+}
+
+.lyric-line.past-2 {
+  opacity: 0.25;
+  color: #2a2a2a;
+  transform: translateZ(-100px) rotateX(18deg) translateY(-15px);
+  filter: blur(2px);
+}
+
+.lyric-line.past-1 {
+  opacity: 0.5;
+  color: #3a3a3a;
+  transform: translateZ(-50px) rotateX(10deg) translateY(-5px);
+  filter: blur(1px);
+}
+
+/* Активная строка - на переднем плане */
+.lyric-line.active {
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  opacity: 1;
+  transform: translateZ(20px) rotateX(0deg);
+  text-shadow: 
+    0 0 40px rgba(255, 255, 255, 0.3),
+    0 0 80px var(--accent-glow);
+  filter: blur(0);
+}
+
+/* Следующие строки - уходят "вперёд" по дуге */
+.lyric-line.next-1 {
+  opacity: 0.7;
+  color: #777;
+  transform: translateZ(-30px) rotateX(-8deg) translateY(5px);
+}
+
+.lyric-line.next-2 {
+  opacity: 0.5;
+  color: #555;
+  transform: translateZ(-60px) rotateX(-15deg) translateY(12px);
+  filter: blur(1px);
+}
+
+.lyric-line.next-3 {
+  opacity: 0.3;
+  color: #3a3a3a;
+  transform: translateZ(-90px) rotateX(-22deg) translateY(20px);
+  filter: blur(2px);
+}
+
+.lyric-line.next-4 {
+  opacity: 0;
+  transform: translateZ(-120px) rotateX(-28deg) translateY(28px);
+  filter: blur(3px);
+}
+
+/* Footer */
+#footer {
+  min-height: var(--footer-min-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+}
+
+#footer-content {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* === STATUS CLASSES === */
 .status-loading #lyrics-status::after {
   content: 'Searching lyrics...';
+  animation: fade-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fade-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 .status-not_found #lyrics-status::after {
   content: '';
 }
 
-.status-not_found #lyrics::after {
+.status-not_found #lyrics-wrapper::after {
   content: attr(data-fallback);
-  font-size: clamp(1.4rem, 2vw, 3rem);
-  color: #555;
-  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  color: var(--text-muted);
   text-align: center;
-  padding: var(--space-32);
+  max-width: 80%;
 }
 
 .status-found #lyrics-status {
@@ -341,32 +353,148 @@ footer#bottom-bar {
   content: '';
 }
 
-/* Индикатор подключения */
-#app::before {
-  content: '';
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + var(--space-16));
-  right: calc(env(safe-area-inset-right) + var(--space-16));
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
-  transition: all 0.3s ease;
-  z-index: 100;
+/* === RESPONSIVE === */
+
+/* 4K (3840px) */
+@media (min-width: 2560px) {
+  :root {
+    --padding-outer: 64px;
+    --padding-inner: 160px;
+    --gap-sections: 24px;
+    --gap-content: 48px;
+    --header-min-h: 120px;
+    --footer-min-h: 120px;
+  }
+  
+  html {
+    font-size: 20px;
+  }
 }
 
-#app.disconnected::before {
-  background: #ef4444;
-  box-shadow: 0 0 8px #ef4444;
-  animation: pulse 1s infinite;
+/* 2K (2560px) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+  :root {
+    --padding-outer: 48px;
+    --padding-inner: 128px;
+  }
+  
+  html {
+    font-size: 18px;
+  }
 }
 
+/* Full HD (1920px) */
+@media (min-width: 1440px) and (max-width: 1919px) {
+  :root {
+    --padding-outer: 32px;
+    --padding-inner: 80px;
+    --gap-content: 24px;
+  }
+  
+  html {
+    font-size: 16px;
+  }
+}
+
+/* HD (1280-1440px) */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  :root {
+    --padding-outer: 24px;
+    --padding-inner: 48px;
+    --gap-content: 20px;
+    --header-min-h: 80px;
+    --footer-min-h: 80px;
+  }
+  
+  html {
+    font-size: 15px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1023px) {
+  :root {
+    --padding-outer: 16px;
+    --padding-inner: 24px;
+    --gap-sections: 12px;
+    --gap-content: 16px;
+    --header-min-h: 70px;
+    --footer-min-h: 60px;
+  }
+  
+  html {
+    font-size: 14px;
+  }
+  
+  #main {
+    flex-direction: column;
+  }
+  
+  #cover-container {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  #cover {
+    width: clamp(100px, 20vw, 150px);
+    flex-shrink: 0;
+  }
+  
+  #progress-container {
+    flex: 1;
+  }
+  
+  #lyrics-wrapper {
+    perspective-origin: 50% 0%;
+  }
+  
+  #lyrics {
+    padding-left: 0;
+    text-align: center;
+  }
+  
+  .lyric-line {
+    transform-origin: center center;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  :root {
+    --padding-outer: 12px;
+    --padding-inner: 16px;
+  }
+  
+  html {
+    font-size: 13px;
+  }
+  
+  #track-info {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .separator {
+    display: none;
+  }
+}
+
+/* === DISCONNECTED STATE === */
 #app.disconnected {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+#app.disconnected::after {
+  content: 'Reconnecting...';
+  position: fixed;
+  bottom: calc(var(--footer-min-h) + var(--padding-outer) + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  animation: pulse 1s infinite;
 }

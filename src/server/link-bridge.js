@@ -150,7 +150,7 @@ class LinkBridge extends EventEmitter {
             title: this.state.master.title 
           });
         }
-      }, 50);
+      }, 100);
     }
   }
 
