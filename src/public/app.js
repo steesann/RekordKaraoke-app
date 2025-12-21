@@ -42,9 +42,13 @@ function renderLyrics() {
     }
   }
 
-  // Окно отображения: 2 строки до, активная, 3 строки после
-  const windowStart = Math.max(0, activeIndex - 2);
-  const windowEnd = Math.min(lyrics.lines.length, activeIndex + 4);
+  // Окно отображения: 2 строки до, активная, 2 строки после
+  // Делаем окно симметричным, чтобы активная строка была по центру блока
+  // (так визуально “караоке” смотрится лучше).
+  const LINES_BEFORE = 2;
+  const LINES_AFTER = 2;
+  const windowStart = Math.max(0, activeIndex - LINES_BEFORE);
+  const windowEnd = Math.min(lyrics.lines.length, activeIndex + LINES_AFTER + 1);
   
   const newVisibleLines = new Set();
   for (let i = windowStart; i < windowEnd; i++) {

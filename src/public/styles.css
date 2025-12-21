@@ -20,6 +20,8 @@ html {
   --space-128: 8rem;
   --bar-min-h: 6.25rem; /* 100px на 2K */
   --lyrics-max-w: clamp(20rem, 55vw, 87.5rem); /* 320px..1400px при 16px base */
+  --cover-max-w: 32rem; /* размер обложки на 2K */
+  --lyrics-fade-pad: 2.5rem; /* “воздух” сверху/снизу, чтобы не рубило строки */
 }
 
 body {
@@ -79,8 +81,14 @@ body {
 #lyrics-container {
   /* Основной блок: обложка слева, текст справа */
   display: grid;
-  grid-template-columns: minmax(16rem, 24rem) 1fr;
-  gap: var(--space-128);
+  /* Держим группу (обложка+текст) по центру, а не растягиваем правую колонку на всю ширину.
+     Так активная строка визуально оказывается “в центре” правого блока, а не уезжает вправо. */
+  grid-template-columns:
+    minmax(18rem, var(--cover-max-w))
+    minmax(0, var(--lyrics-max-w));
+  justify-content: center;
+  align-items: center;
+  column-gap: var(--space-128);
 
   /* Внутренние отступы “128” из макета */
   padding: var(--space-128);
@@ -93,7 +101,7 @@ body {
 /* Адаптация: на более узких экранах уменьшаем “128” и складываем колонки */
 @media (max-width: 80rem) {
   #lyrics-container {
-    gap: var(--space-48);
+    column-gap: var(--space-48);
     padding: var(--space-48);
   }
 }
@@ -111,7 +119,14 @@ body {
 #lyrics-status {
   color: #666;
   font-size: 1rem;
+  /* Не должен сдвигать центр лирики, когда пустой */
   margin-bottom: var(--space-16);
+}
+
+/* Когда статус пустой — убираем из потока, чтобы не ломал вертикальное центрирование */
+#lyrics-status:empty {
+  display: none;
+  margin-bottom: 0;
 }
 
 /* Левая колонка — обложка */
@@ -124,7 +139,7 @@ body {
 
 #cover {
   width: 100%;
-  max-width: 24rem;
+  max-width: var(--cover-max-w);
   aspect-ratio: 1 / 1;
   background: #d9d9d9;
   overflow: hidden;
@@ -146,7 +161,8 @@ body {
 /* Правая колонка — лирика */
 #lyrics-panel {
   min-height: 0;
-  overflow: hidden;
+  /* Не режем свечение активной строки */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -155,9 +171,27 @@ body {
 
 #lyrics {
   text-align: center;
-  width: 100%;
-  max-width: var(--lyrics-max-w);
+  width: min(100%, var(--lyrics-max-w));
+  margin-inline: auto;
   position: relative;
+
+  /* Мягкое “обрезание”: делаем запас сверху/снизу и плавный fade, чтобы строки не рубились */
+  padding-block: var(--lyrics-fade-pad);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 18%,
+    #000 82%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 18%,
+    #000 82%,
+    transparent
+  );
 
   /* Чтобы текст красиво центровался по высоте в правой колонке */
   flex: 1;
