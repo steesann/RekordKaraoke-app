@@ -4,7 +4,6 @@
  */
 
 function parseTimestamp(ts) {
-  // [mm:ss.xx] или [mm:ss:xx]
   const match = ts.match(/(\d+):(\d+)[.:](\d+)/);
   if (!match) return null;
   
@@ -15,7 +14,8 @@ function parseTimestamp(ts) {
   return minutes * 60 + seconds + ms / 1000;
 }
 
-function parse(content) {
+function parse(content, options = {}) {
+  const { duration = null } = options;
   const lines = content.split(/\r?\n/);
   const result = {
     meta: {},
@@ -23,7 +23,7 @@ function parse(content) {
   };
 
   for (const line of lines) {
-    // Метаданные: [ti:Title], [ar:Artist], [al:Album], [offset:+/-ms]
+    // Метаданные: [ti:Title], [ar:Artist], [al:Album], [offset:+/-ms], [length:mm:ss]
     const metaMatch = line.match(/^\[(\w+):(.+)\]$/);
     if (metaMatch) {
       const [, key, value] = metaMatch;
@@ -32,7 +32,6 @@ function parse(content) {
     }
 
     // Тайм-коды: [00:12.34] текст
-    // Может быть несколько тайм-кодов на строку: [00:12.34][00:45.67] текст
     const timestamps = [];
     let text = line;
     let match;
@@ -46,7 +45,6 @@ function parse(content) {
     text = text.trim();
     if (timestamps.length === 0 || !text) continue;
 
-    // Добавляем строку для каждого тайм-кода
     for (const time of timestamps) {
       result.lines.push({ time, text });
     }
@@ -55,9 +53,25 @@ function parse(content) {
   // Сортируем по времени
   result.lines.sort((a, b) => a.time - b.time);
 
+  // Определяем длительность трека
+  let trackDuration = duration;
+  
+  // Пробуем взять из метаданных [length:mm:ss]
+  if (!trackDuration && result.meta.length) {
+    const lengthMatch = result.meta.length.match(/(\d+):(\d+)/);
+    if (lengthMatch) {
+      trackDuration = parseInt(lengthMatch[1], 10) * 60 + parseInt(lengthMatch[2], 10);
+    }
+  }
+
   // Вычисляем endTime для каждой строки
   for (let i = 0; i < result.lines.length; i++) {
-    result.lines[i].endTime = result.lines[i + 1]?.time ?? result.lines[i].time + 5;
+    if (i < result.lines.length - 1) {
+      result.lines[i].endTime = result.lines[i + 1].time;
+    } else {
+      // Последняя строка: используем duration или +30 сек для длинных аутро
+      result.lines[i].endTime = trackDuration || (result.lines[i].time + 30);
+    }
   }
 
   // Применяем offset если есть
@@ -68,6 +82,10 @@ function parse(content) {
       line.time = Math.max(0, line.time + offsetSec);
       line.endTime = Math.max(0, line.endTime + offsetSec);
     }
+  }
+
+  if (trackDuration) {
+    result.duration = trackDuration;
   }
 
   return result;

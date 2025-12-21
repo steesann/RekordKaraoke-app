@@ -24,6 +24,7 @@
     "lyricsJson": "./data/lyrics_json",
     "library": "./data/library.json",
     "reports": "./data/reports",
-    "cache": "./data/cache"
+    "cache": "./data/cache",
+    "covers": "./data/covers"
   }
 }

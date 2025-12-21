@@ -4,6 +4,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const LinkBridge = require('./link-bridge');
 const Resolver = require('./lyrics/resolver');
+const CoverProvider = require('./lyrics/providers/cover');
 const logger = require('./util/logger');
 
 // Загружаем конфиг
@@ -16,8 +17,9 @@ let currentState = {
   title: '',
   time: 0,
   bpm: 0,
-  lyrics: null,      // { lines: [...], meta: {...} }
-  lyricsStatus: 'none' // none | loading | found | not_found
+  lyrics: null,
+  lyricsStatus: 'none',
+  coverUrl: null
 };
 
 // WebSocket клиенты
@@ -26,7 +28,7 @@ const wsClients = new Set();
 function broadcast(data) {
   const msg = JSON.stringify(data);
   for (const ws of wsClients) {
-    if (ws.readyState === 1) { // OPEN
+    if (ws.readyState === 1) {
       ws.send(msg);
     }
   }
@@ -37,17 +39,38 @@ async function main() {
   const resolver = new Resolver(config);
   await resolver.init();
 
+  // Инициализируем провайдер обложек
+  const coverProvider = new CoverProvider({
+    paths: { covers: config.paths?.covers || './data/covers' },
+    timeout: 5000
+  });
+  await coverProvider.init();
+
   // HTTP сервер для статики
   const server = http.createServer((req, res) => {
-    let filePath = path.join(__dirname, '../public', req.url === '/' ? 'index.html' : req.url);
-    
-    const ext = path.extname(filePath);
     const mimeTypes = {
       '.html': 'text/html',
       '.js': 'text/javascript',
       '.css': 'text/css',
-      '.json': 'application/json'
+      '.json': 'application/json',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml'
     };
+
+    let filePath;
+    
+    // Роут для обложек
+    if (req.url.startsWith('/covers/')) {
+      filePath = path.join(__dirname, '../../data/covers', decodeURIComponent(req.url.slice(8)));
+    } else {
+      filePath = path.join(__dirname, '../public', req.url === '/' ? 'index.html' : req.url);
+    }
+    
+    const ext = path.extname(filePath).toLowerCase();
 
     fs.readFile(filePath, (err, content) => {
       if (err) {
@@ -55,7 +78,7 @@ async function main() {
         res.end('Not found');
         return;
       }
-      res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+      res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
       res.end(content);
     });
   });
@@ -67,7 +90,6 @@ async function main() {
     logger.info('Client connected');
     wsClients.add(ws);
     
-    // Отправляем текущее состояние
     ws.send(JSON.stringify({ type: 'state', data: currentState }));
     
     ws.on('close', () => {
@@ -84,16 +106,29 @@ async function main() {
     currentState.title = title;
     currentState.lyrics = null;
     currentState.lyricsStatus = 'loading';
+    currentState.coverUrl = null;
     
     broadcast({ type: 'track', data: { artist, title, status: 'loading' } });
     
-    // Ищем лирику
-    const result = await resolver.resolve(artist, title);
+    // Параллельно ищем лирику и обложку
+    const [lyricsResult, coverUrl] = await Promise.all([
+      resolver.resolve(artist, title),
+      coverProvider.getCover(artist, title).catch(err => {
+        logger.error(`Cover error: ${err.message}`);
+        return null;
+      })
+    ]);
     
-    if (result) {
-      // Загружаем JSON
+    // Обложка
+    if (coverUrl) {
+      currentState.coverUrl = coverUrl;
+      broadcast({ type: 'cover', data: coverUrl });
+    }
+    
+    // Лирика
+    if (lyricsResult) {
       try {
-        const lyrics = await resolver.store.load(result.jsonPath);
+        const lyrics = await resolver.store.load(lyricsResult.jsonPath);
         currentState.lyrics = lyrics;
         currentState.lyricsStatus = 'found';
         broadcast({ type: 'lyrics', data: { status: 'found', lyrics } });
@@ -120,7 +155,6 @@ async function main() {
 
   bridge.start();
 
-  // Запускаем HTTP сервер
   const port = config.server.httpPort || 3000;
   server.listen(port, () => {
     logger.info(`Server running on http://localhost:${port}`);

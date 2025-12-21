@@ -1,5 +1,6 @@
 /**
  * RekordKaraoke Frontend
+ * Интерполяция времени для плавности
  */
 
 const app = document.getElementById('app');
@@ -9,23 +10,40 @@ const lyricsEl = document.getElementById('lyrics');
 const currentTimeEl = document.getElementById('current-time');
 const bpmEl = document.getElementById('bpm');
 const progressFill = document.getElementById('progress-fill');
+const coverImage = document.getElementById('cover-image');
 
 let lyrics = null;
-let currentTime = 0;
 let ws = null;
 
-// Форматирование времени
+// Интерполяция времени
+let serverTime = 0;
+let serverTimestamp = 0;
+let isPlaying = true;
+let animationFrameId = null;
+let lastActiveIndex = -1;
+let visibleLines = new Set();
+
+// Количество строк
+const LINES_BEFORE = 2;
+const LINES_AFTER = 2;
+
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// Рендер лирики с плавными анимациями
-let lastActiveIndex = -1;
-let visibleLines = new Set();
+function getCurrentTime() {
+  if (!isPlaying || serverTimestamp === 0) {
+    return serverTime;
+  }
+  const elapsed = (Date.now() - serverTimestamp) / 1000;
+  return serverTime + elapsed;
+}
 
-function renderLyrics() {
+// === LYRICS RENDERING ===
+
+function renderLyrics(currentTime) {
   if (!lyrics || !lyrics.lines || lyrics.lines.length === 0) {
     lyricsEl.innerHTML = '';
     visibleLines.clear();
@@ -33,7 +51,6 @@ function renderLyrics() {
     return;
   }
 
-  // Находим текущую строку
   let activeIndex = -1;
   for (let i = lyrics.lines.length - 1; i >= 0; i--) {
     if (currentTime >= lyrics.lines[i].time) {
@@ -42,11 +59,11 @@ function renderLyrics() {
     }
   }
 
-  // Окно отображения: 2 строки до, активная, 2 строки после
-  // Делаем окно симметричным, чтобы активная строка была по центру блока
-  // (так визуально “караоке” смотрится лучше).
-  const LINES_BEFORE = 2;
-  const LINES_AFTER = 2;
+  // Если activeIndex не изменился, не перерисовываем
+  if (activeIndex === lastActiveIndex && lyricsEl.children.length > 0) {
+    return;
+  }
+
   const windowStart = Math.max(0, activeIndex - LINES_BEFORE);
   const windowEnd = Math.min(lyrics.lines.length, activeIndex + LINES_AFTER + 1);
   
@@ -55,7 +72,6 @@ function renderLyrics() {
     newVisibleLines.add(i);
   }
 
-  // Проверяем нужен ли полный перерендер
   const needsFullRender = !lyricsEl.children.length || 
     activeIndex < lastActiveIndex ||
     Math.abs(activeIndex - lastActiveIndex) > 2;
@@ -83,7 +99,6 @@ function renderFullLyrics(activeIndex, windowStart, windowEnd, newVisibleLines) 
 
   lyricsEl.innerHTML = html;
 
-  // Триггерим анимацию появления через requestAnimationFrame
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const lines = lyricsEl.querySelectorAll('.lyric-line');
@@ -104,17 +119,14 @@ function updateLyricsClasses(activeIndex, windowStart, windowEnd, newVisibleLine
     existingIndices.add(idx);
     
     if (!newVisibleLines.has(idx)) {
-      // Строка уходит из окна — плавно скрываем
       el.classList.add('fading-out');
       el.classList.remove('visible');
     } else {
-      // Обновляем классы
       el.className = getLineClasses(idx, activeIndex, false);
       el.classList.add('visible');
     }
   });
 
-  // Добавляем новые строки
   for (let i = windowStart; i < windowEnd; i++) {
     if (!existingIndices.has(i)) {
       const line = lyrics.lines[i];
@@ -123,7 +135,6 @@ function updateLyricsClasses(activeIndex, windowStart, windowEnd, newVisibleLine
       div.dataset.index = i;
       div.textContent = line.text;
       
-      // Вставляем в правильную позицию
       const insertBefore = Array.from(lyricsEl.children).find(el => 
         parseInt(el.dataset.index, 10) > i
       );
@@ -134,7 +145,6 @@ function updateLyricsClasses(activeIndex, windowStart, windowEnd, newVisibleLine
         lyricsEl.appendChild(div);
       }
 
-      // Анимация появления
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           div.classList.add('visible');
@@ -144,7 +154,6 @@ function updateLyricsClasses(activeIndex, windowStart, windowEnd, newVisibleLine
     }
   }
 
-  // Удаляем скрытые строки после анимации
   setTimeout(() => {
     const fadingOut = lyricsEl.querySelectorAll('.fading-out');
     fadingOut.forEach(el => el.remove());
@@ -177,21 +186,69 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Обновление прогресса
-function updateProgress() {
+// === PROGRESS ===
+
+function updateProgress(currentTime) {
   if (!lyrics || !lyrics.lines || lyrics.lines.length === 0) {
     progressFill.style.width = '0%';
     return;
   }
 
-  // Примерная длительность = время последней строки + 5 сек
-  const duration = lyrics.lines[lyrics.lines.length - 1].endTime || 
-                   lyrics.lines[lyrics.lines.length - 1].time + 5;
+  const duration = lyrics.duration || 
+    lyrics.lines[lyrics.lines.length - 1].endTime || 
+    lyrics.lines[lyrics.lines.length - 1].time + 30;
   const progress = Math.min(100, (currentTime / duration) * 100);
   progressFill.style.width = `${progress}%`;
 }
 
-// WebSocket подключение
+// === ANIMATION LOOP ===
+
+function tick() {
+  const time = getCurrentTime();
+  currentTimeEl.textContent = formatTime(time);
+  renderLyrics(time);
+  updateProgress(time);
+  animationFrameId = requestAnimationFrame(tick);
+}
+
+function startAnimationLoop() {
+  if (animationFrameId === null) {
+    animationFrameId = requestAnimationFrame(tick);
+  }
+}
+
+function stopAnimationLoop() {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+}
+
+// === COVER ===
+
+function setCover(url) {
+  if (!coverImage) return;
+  
+  const img = new Image();
+  img.onload = () => {
+    coverImage.src = url;
+  };
+  img.onerror = () => {
+    coverImage.src = '';
+  };
+  img.src = url;
+}
+
+function updateFallback(artist, title) {
+  if (artist && title) {
+    lyricsEl.setAttribute('data-fallback', `${artist} — ${title}`);
+  } else {
+    lyricsEl.setAttribute('data-fallback', '');
+  }
+}
+
+// === WEBSOCKET ===
+
 let isConnected = false;
 
 function connect() {
@@ -202,6 +259,7 @@ function connect() {
     console.log('Connected to server');
     isConnected = true;
     app.classList.remove('disconnected');
+    startAnimationLoop();
   };
 
   ws.onmessage = (event) => {
@@ -228,24 +286,30 @@ function connect() {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'state':
-      // Полное состояние при подключении
       artistEl.textContent = msg.data.artist || '—';
       titleEl.textContent = msg.data.title || 'Waiting for track...';
-      currentTime = msg.data.time || 0;
+      serverTime = msg.data.time || 0;
+      serverTimestamp = Date.now();
       bpmEl.textContent = msg.data.bpm ? `${Math.round(msg.data.bpm)} BPM` : '— BPM';
       lyrics = msg.data.lyrics;
       app.className = `status-${msg.data.lyricsStatus}`;
       updateFallback(msg.data.artist, msg.data.title);
-      renderLyrics();
-      updateProgress();
+      if (msg.data.coverUrl) {
+        setCover(msg.data.coverUrl);
+      }
+      lastActiveIndex = -1;
       break;
 
     case 'track':
       artistEl.textContent = msg.data.artist || '—';
       titleEl.textContent = msg.data.title || '—';
       lyrics = null;
+      lastActiveIndex = -1;
+      serverTime = 0;
+      serverTimestamp = Date.now();
       app.className = `status-${msg.data.status}`;
       updateFallback(msg.data.artist, msg.data.title);
+      if (coverImage) coverImage.src = '';
       lyricsEl.innerHTML = '';
       progressFill.style.width = '0%';
       break;
@@ -254,28 +318,24 @@ function handleMessage(msg) {
       app.className = `status-${msg.data.status}`;
       if (msg.data.status === 'found' && msg.data.lyrics) {
         lyrics = msg.data.lyrics;
-        renderLyrics();
+        lastActiveIndex = -1;
+      }
+      break;
+
+    case 'cover':
+      if (msg.data) {
+        setCover(msg.data);
       }
       break;
 
     case 'time':
-      currentTime = msg.data;
-      currentTimeEl.textContent = formatTime(currentTime);
-      renderLyrics();
-      updateProgress();
+      serverTime = msg.data;
+      serverTimestamp = Date.now();
       break;
 
     case 'bpm':
       bpmEl.textContent = `${Math.round(msg.data)} BPM`;
       break;
-  }
-}
-
-function updateFallback(artist, title) {
-  if (artist && title) {
-    lyricsEl.setAttribute('data-fallback', `${artist} — ${title}`);
-  } else {
-    lyricsEl.setAttribute('data-fallback', '');
   }
 }
 

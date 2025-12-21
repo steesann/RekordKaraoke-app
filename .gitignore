@@ -8,8 +8,10 @@ data/lyrics_json/*
 data/reports/*
 data/cache/*
 data/library.json
+data/covers/*
 
 !data/playlists/.gitkeep
+!data/covers/.gitkeep
 
 # IDE
 .idea/

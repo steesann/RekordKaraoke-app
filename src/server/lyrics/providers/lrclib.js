@@ -1,25 +1,10 @@
 /**
  * LRCLIB Provider
  * API: https://lrclib.net/api
- * Документация: https://lrclib.net/docs
  */
 
 const logger = require('../../util/logger');
-
-/**
- * Очищает название от мусора для fallback поиска
- */
-function cleanForSearch(str) {
-  if (!str) return '';
-  return str
-    // Убираем содержимое в скобках: (feat. X), [Remix], (Original Mix), (Radio Edit)
-    .replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, ' ')
-    // Убираем feat./ft./featuring
-    .replace(/\s*(feat\.?|ft\.?|featuring)\s+.*/i, '')
-    // Убираем лишние пробелы
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const { cleanForSearch } = require('../../util/normalize');
 
 class LrclibProvider {
   constructor(config = {}) {
@@ -57,9 +42,7 @@ class LrclibProvider {
 
       const res = await fetch(url.toString(), {
         signal: controller.signal,
-        headers: {
-          'User-Agent': 'RekordKaraoke/1.0'
-        }
+        headers: { 'User-Agent': 'RekordKaraoke/1.0' }
       });
       clearTimeout(timeoutId);
 
@@ -73,7 +56,6 @@ class LrclibProvider {
         return null;
       }
 
-      // Ищем результат с syncedLyrics
       const synced = data.find(item => item.syncedLyrics);
       if (synced) {
         return {
@@ -90,11 +72,10 @@ class LrclibProvider {
         };
       }
 
-      // Fallback на plain lyrics (без тайм-кодов)
       const plain = data.find(item => item.plainLyrics);
       if (plain) {
         logger.warn(`LRCLIB: only plain lyrics for "${artist} - ${title}"`);
-        return null; // Нам нужны только синхронизированные
+        return null;
       }
 
       return null;
@@ -108,9 +89,6 @@ class LrclibProvider {
     }
   }
 
-  /**
-   * Прямой запрос по точному совпадению
-   */
   async get(artist, title, album = '', duration = 0) {
     const url = new URL(`${this.baseUrl}/get`);
     url.searchParams.set('artist_name', artist);
@@ -124,9 +102,7 @@ class LrclibProvider {
 
       const res = await fetch(url.toString(), {
         signal: controller.signal,
-        headers: {
-          'User-Agent': 'RekordKaraoke/1.0'
-        }
+        headers: { 'User-Agent': 'RekordKaraoke/1.0' }
       });
       clearTimeout(timeoutId);
 

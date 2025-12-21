@@ -2,21 +2,30 @@
  * Нормализация artist/title для поиска и индексации
  */
 
+/**
+ * Полная нормализация для ключей библиотеки
+ */
 function normalize(str) {
   if (!str) return '';
   
   return str
-    // В нижний регистр
     .toLowerCase()
-    // Убираем содержимое в скобках: (feat. X), [Remix], (Original Mix)
     .replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, ' ')
-    // Убираем feat./ft./featuring
     .replace(/\s*(feat\.?|ft\.?|featuring)\s+.*/i, '')
-    // Убираем лишние пробелы
     .replace(/\s+/g, ' ')
-    // Убираем спецсимволы кроме базовых
     .replace(/[^\w\sа-яё]/gi, '')
-    // Trim
+    .trim();
+}
+
+/**
+ * Лёгкая очистка для поиска в API (сохраняет регистр)
+ */
+function cleanForSearch(str) {
+  if (!str) return '';
+  return str
+    .replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, ' ')
+    .replace(/\s*(feat\.?|ft\.?|featuring)\s+.*/i, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -35,4 +44,4 @@ function makeSafeFilename(artist, title) {
   return `${safe(artist)}_-_${safe(title)}`;
 }
 
-module.exports = { normalize, makeKey, makeSafeFilename };
+module.exports = { normalize, cleanForSearch, makeKey, makeSafeFilename };

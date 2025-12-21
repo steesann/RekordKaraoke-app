@@ -15,12 +15,12 @@ function getParser(formatOrExtension) {
   return parsers[key] || null;
 }
 
-function parse(content, formatOrExtension) {
+function parse(content, formatOrExtension, options = {}) {
   const parser = getParser(formatOrExtension);
   if (!parser) {
     throw new Error(`Unsupported format: ${formatOrExtension}`);
   }
-  return parser.parse(content);
+  return parser.parse(content, options);
 }
 
 function getSupportedFormats() {

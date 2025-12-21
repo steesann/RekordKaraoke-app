@@ -105,7 +105,6 @@ function setBpm(newBpm) {
 
 // Тестовые треки
 const testTracks = [
-  { artist: 'saypink!', title: 'Протест' },
   { artist: 'Дети rave', title: 'China town' },
 ];
 

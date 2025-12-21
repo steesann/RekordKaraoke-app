@@ -7,7 +7,6 @@
  */
 
 function parseTimestamp(ts) {
-  // 00:00:12,340 или 00:00:12.340
   const match = ts.match(/(\d+):(\d+):(\d+)[,.](\d+)/);
   if (!match) return null;
   
@@ -19,7 +18,8 @@ function parseTimestamp(ts) {
   return hours * 3600 + minutes * 60 + seconds + ms / 1000;
 }
 
-function parse(content) {
+function parse(content, options = {}) {
+  const { duration = null } = options;
   const blocks = content.trim().split(/\r?\n\r?\n/);
   const result = {
     meta: {},
@@ -30,7 +30,6 @@ function parse(content) {
     const lines = block.split(/\r?\n/);
     if (lines.length < 2) continue;
 
-    // Ищем строку с тайм-кодами
     let timeLineIdx = -1;
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].includes('-->')) {
@@ -47,15 +46,17 @@ function parse(content) {
     const endTime = parseTimestamp(endTs);
     if (time === null || endTime === null) continue;
 
-    // Текст — всё после строки с тайм-кодами
     const text = lines.slice(timeLineIdx + 1).join(' ').trim();
     if (!text) continue;
 
     result.lines.push({ time, endTime, text });
   }
 
-  // Сортируем по времени
   result.lines.sort((a, b) => a.time - b.time);
+
+  if (duration) {
+    result.duration = duration;
+  }
 
   return result;
 }
