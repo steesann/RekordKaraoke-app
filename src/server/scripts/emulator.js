@@ -118,7 +118,7 @@ async function autoMode() {
     play();
     
     // Играем 15 секунд
-    await new Promise(r => setTimeout(r, 500000));
+    await new Promise(r => setTimeout(r, 250000));
     pause();
     
     // Пауза между треками

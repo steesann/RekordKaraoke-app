@@ -8,29 +8,40 @@
 </head>
 <body>
   <div id="app">
-    <div id="track-info">
+    <header id="track-info">
       <span id="artist">—</span>
       <span class="separator">–</span>
       <span id="title">Waiting for track...</span>
-    </div>
-    
-    <div id="lyrics-container">
-      <div id="lyrics-status"></div>
-      <div id="lyrics">
-        <!-- Строки лирики будут здесь -->
+    </header>
+
+    <!-- Основной блок: обложка + лирика -->
+    <main id="lyrics-container">
+      <section id="cover-panel" aria-label="Обложка трека">
+        <div id="cover">
+          <img id="cover-image" alt="" decoding="async" loading="lazy">
+        </div>
+      </section>
+
+      <section id="lyrics-panel" aria-label="Текст">
+        <div id="lyrics-status"></div>
+        <div id="lyrics">
+          <!-- Строки лирики будут здесь -->
+        </div>
+      </section>
+    </main>
+
+    <footer id="bottom-bar">
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
       </div>
-    </div>
-    
-    <div id="progress-bar">
-      <div id="progress-fill"></div>
-    </div>
-    
-    <div id="time-info">
-      <span id="current-time">0:00</span>
-      <span id="bpm">— BPM</span>
-    </div>
+
+      <div id="time-info">
+        <span id="current-time">0:00</span>
+        <span id="bpm">— BPM</span>
+      </div>
+    </footer>
   </div>
-  
+
   <script src="app.js"></script>
 </body>
 </html>
