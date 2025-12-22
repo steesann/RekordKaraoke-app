@@ -12,6 +12,8 @@ data/covers/*
 
 !data/playlists/.gitkeep
 !data/covers/.gitkeep
+!data/lyrics_raw/.gitkeep
+!data/lyrics_json/.gitkeep
 
 # IDE
 .idea/

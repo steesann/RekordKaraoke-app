@@ -105,7 +105,7 @@ function setBpm(newBpm) {
 
 // Тестовые треки
 const testTracks = [
-  { artist: 'Дети rave', title: 'China town' },
+  { artist: 'Дети RAVE', title: 'Zidane' },
 ];
 
 // Авто-режим
