@@ -91,7 +91,17 @@ class CoverProvider {
   }
 
   async _fetchRetry(url, options = {}, tries = this.retries) {
-    const transient = new Set(["ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "ENOTFOUND"]);
+    const transient = new Set([
+      "ECONNRESET", 
+      "ETIMEDOUT", 
+      "EAI_AGAIN", 
+      "ENOTFOUND",
+
+      "UND_ERR_SOCKET",
+      "UND_ERR_CONNECT_TIMEOUT",
+      "UND_ERR_HEADERS_TIMEOUT",
+      "UND_ERR_BODY_TIMEOUT",
+    ]);
     let lastErr;
 
     for (let i = 0; i < tries; i++) {
