@@ -26,6 +26,7 @@ html {
 
 body {
   background: #121212;
+  background-image: url("bg-image.svg");
   color: #fff;
   font-family: 'Segoe UI', system-ui, sans-serif;
   min-height: 100vh;
